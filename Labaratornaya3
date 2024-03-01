@@ -1,1 +1,238 @@
+using System;
 
+public class MatrixException : Exception
+{
+    public MatrixException(string message) : base(message)
+    {
+    }
+}
+
+public class SquareMatrix
+{
+    private int[,] matrix;
+    public int Size { get; private set; }
+
+    public SquareMatrix(int size)
+    {
+        if (size <= 0)
+            throw new MatrixException("Matrix size must be greater than zero.");
+
+        Size = size;
+        matrix = new int[size, size];
+    }
+
+    public SquareMatrix(int[,] values)
+    {
+        if (values.GetLength(0) != values.GetLength(1))
+            throw new MatrixException("Matrix must be square.");
+
+        Size = values.GetLength(0);
+        matrix = values;
+    }
+
+    public SquareMatrix RandomMatrix(int minValue, int maxValue)
+    {
+        Random rand = new Random();
+        int[,] randomMatrix = new int[Size, Size];
+
+        for (int i = 0; i < Size; i++)
+        {
+            for (int j = 0; j < Size; j++)
+            {
+                randomMatrix[i, j] = rand.Next(minValue, maxValue);
+            }
+        }
+
+        return new SquareMatrix(randomMatrix);
+    }
+
+    public static SquareMatrix operator +(SquareMatrix matrix1, SquareMatrix matrix2)
+    {
+        if (matrix1.Size != matrix2.Size)
+            throw new MatrixException("Matrices must be of the same size for addition.");
+
+        int[,] result = new int[matrix1.Size, matrix1.Size];
+        for (int i = 0; i < matrix1.Size; i++)
+        {
+            for (int j = 0; j < matrix1.Size; j++)
+            {
+                result[i, j] = matrix1.matrix[i, j] + matrix2.matrix[i, j];
+            }
+        }
+        return new SquareMatrix(result);
+    }
+
+    public static SquareMatrix operator *(SquareMatrix matrix1, SquareMatrix matrix2)
+    {
+        if (matrix1.Size != matrix2.Size)
+            throw new MatrixException("Matrices must be of the same size for multiplication.");
+
+        int[,] result = new int[matrix1.Size, matrix1.Size];
+        for (int i = 0; i < matrix1.Size; i++)
+        {
+            for (int j = 0; j < matrix1.Size; j++)
+            {
+                int sum = 0;
+                for (int k = 0; k < matrix1.Size; k++)
+                {
+                    sum += matrix1.matrix[i, k] * matrix2.matrix[k, j];
+                }
+                result[i, j] = sum;
+            }
+        }
+        return new SquareMatrix(result);
+    }
+
+    public static bool operator ==(SquareMatrix matrix1, SquareMatrix matrix2)
+    {
+        if (ReferenceEquals(matrix1, null) && ReferenceEquals(matrix2, null))
+            return true;
+        if (ReferenceEquals(matrix1, null) || ReferenceEquals(matrix2, null))
+            return false;
+
+        if (matrix1.Size != matrix2.Size)
+            return false;
+
+        for (int i = 0; i < matrix1.Size; i++)
+        {
+            for (int j = 0; j < matrix1.Size; j++)
+            {
+                if (matrix1.matrix[i, j] != matrix2.matrix[i, j])
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    public static bool operator !=(SquareMatrix matrix1, SquareMatrix matrix2)
+    {
+        return !(matrix1 == matrix2);
+    }
+
+    public static bool operator >(SquareMatrix matrix1, SquareMatrix matrix2)
+    {
+        if (matrix1.Size != matrix2.Size)
+            throw new MatrixException("Matrices must be of the same size for comparison.");
+
+        return matrix1.Determinant() > matrix2.Determinant();
+    }
+
+    public static bool operator <(SquareMatrix matrix1, SquareMatrix matrix2)
+    {
+        if (matrix1.Size != matrix2.Size)
+            throw new MatrixException("Matrices must be of the same size for comparison.");
+
+        return matrix1.Determinant() < matrix2.Determinant();
+    }
+
+    public int Determinant()
+    {
+        if (Size == 1)
+            return matrix[0, 0];
+        
+        if (Size == 2)
+            return matrix[0, 0] * matrix[1, 1] - matrix[0, 1] * matrix[1, 0];
+
+        int det = 0;
+        for (int j = 0; j < Size; j++)
+        {
+            det += (int)Math.Pow(-1, j) * matrix[0, j] * Minor(0, j).Determinant();
+        }
+        return det;
+    }
+
+    private SquareMatrix Minor(int row, int col)
+    {
+        int[,] minorMatrix = new int[Size - 1, Size - 1];
+        int m = 0, n = 0;
+        for (int i = 0; i < Size; i++)
+        {
+            if (i == row)
+                continue;
+            for (int j = 0; j < Size; j++)
+            {
+                if (j == col)
+                    continue;
+                minorMatrix[m, n] = matrix[i, j];
+                n++;
+            }
+            m++;
+            n = 0;
+        }
+        return new SquareMatrix(minorMatrix);
+    }
+
+    public SquareMatrix Inverse()
+    {
+        int det = Determinant();
+        if (det == 0)
+            throw new MatrixException("Matrix is singular, cannot find inverse.");
+
+        int[,] inverseMatrix = new int[Size, Size];
+        for (int i = 0; i < Size; i++)
+        {
+            for (int j = 0; j < Size; j++)
+            {
+                int minorDet = Minor(j, i).Determinant();
+                inverseMatrix[i, j] = (int)Math.Pow(-1, i + j) * minorDet / det;
+            }
+        }
+        return new SquareMatrix(inverseMatrix);
+    }
+
+    public override string ToString()
+    {
+        string result = "";
+        for (int i = 0; i < Size; i++)
+        {
+            for (int j = 0; j < Size; j++)
+            {
+                result += matrix[i, j] + " ";
+            }
+            result += "\n";
+        }
+        return result;
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (!(obj is SquareMatrix))
+            return false;
+
+        SquareMatrix other = (SquareMatrix)obj;
+        return this == other;
+    }
+
+    public override int GetHashCode()
+    {
+        return matrix.GetHashCode();
+    }
+
+    public bool IsSingular()
+    {
+        return Determinant() == 0;
+    }
+
+    public static bool operator true(SquareMatrix matrix)
+    {
+        return !matrix.IsSingular();
+    }
+
+    public static bool operator false(SquareMatrix matrix)
+    {
+        return matrix.IsSingular();
+    }
+
+    public static explicit operator int(SquareMatrix matrix)
+    {
+        return matrix.Determinant();
+    }
+}
+
+public class MatrixCalculator
+{
+    public static void Main(string[] args)
+    {
+        try
+        {
+            SquareMatrix matrix1 = new Square
